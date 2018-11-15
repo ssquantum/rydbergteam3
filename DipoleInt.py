@@ -5,6 +5,9 @@ Calculate the spectrum of noe and two Rydberg atoms in an optical tweezer.
 
 1) Formulate the equations for Gaussian beam propagation.
 2) Look at the dipole interaction and the induced dipole moment
+
+14.11.18 add in dipole potential
+calculate the polarizability and compare the 2-level model to including other transitions
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,6 +16,7 @@ import matplotlib.pyplot as plt
 c = 299792458        # speed of light in m/s
 eps0 = 8.85419e-12   # permittivity of free space in m^-3 kg^-1 s^4 A^2
 hbar = 1.0545718e-34 # in m^2 kg / s
+a0 = 5.29177e-11     # Bohr radius in m
 
 
 class Gauss:
@@ -57,30 +61,54 @@ class dipole:
         self.s     = 0.5 * self.rabi**2 / (self.Delta**2 + 0.25*self.gam**2)
         self.ust   = self.Delta * self.s / self.rabi / (1. + self.s)     # in phase dipole moment
         self.vst   = self.gam * 0.5 / self.rabi * self.s / (1. + self.s) # quadrature dipole moment
-        
-
-class potential:
-
-    def __init__(self, beam, dipole_param):
-        self.G = Gauss(beam)
-        self.D = dipole(dipole_param)
 
     def U(self, x, y, z):
         """Return the potential from the dipole interaction U = -<d>E = -1/2 Re[alpha] E^2
         where in the FORT limit we can take alpha = -D0^2/hbar /Delta for detuning Delta >> than the natural linewidth"""
-        return self.D.D0**2 / 2 / hbar / self.D.Delta *np.abs( self.G.amplitude(x,y,z) )**2
+        return self.D0**2 / 2 / hbar / self.Delta *np.abs( self.field.amplitude(x,y,z) )**2
+    
+    def reala(self):
+        """Return the real part of the polarizability """
+        return -self.D0**2 / hbar * self.Delta / (self.Delta**2 - self.gam**2/4.)
+    
         
 if __name__ == "__main__":
     # plot the dipole moment components as a function of detuning
     # in order to make the units nice, normalise the detuning to the spontaneous decay rate
     # and take the rabi frequency to be equal to the spontaneous decay rate
-    x = np.linspace()
-    y = x
-    z = np.linsapce()
 
-    wavelength = 980e-9  # wavelength of laser in m
+    # need a large number of points in the array to resolve resonances
+    wavelength = np.logspace(-7, -5, 10000)   # wavelength of laser in m
+    omega = 2*np.pi * c / wavelength  # angular frequency in rad/s
     power = 1 # power in watts
     beamwaist = 1e-6 # beam waist in m
-
+    fprop = [wavelength, power, beamwaist]
+    
+    D0guess = 3.584e-29 # dipole matrix element for 87Rb D2 transition in Cm
+    omega0 = 2*np.pi*c / 780.2e-9 # estimate of resonant frequeny in rad/s for 87Rb D2 transition
+    gamma = 2*np.pi*6.07e6 # estimate of natural linewidth in rad/s
+    
     beam1 = Gauss(wavelength, power, beamwaist)
-    d1 = dipole(133, 
+    d1 = dipole(133, 7/2., D0guess, fprop, omega0, gamma)
+
+    # get a graph of polarizability
+    alphas = d1.reala()
+    alphas *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
+    
+    # compare K. Weatherill's polarizability
+    # the values are obtained from K J Weatherill's thesis, Fig 2.5, available from Durham etheses
+    As = np.array([1.37e5, 8.91e4, 3.96e5, 2.89e5, 1.77e6, 1.5e6, 3.81e7, 3.61e7])
+    omegas = 2*np.pi*c / np.array([334.87, 335.08, 358.71, 359.16, 420.18, 421.55, 780.27, 794.76]) / 1e-9
+    kwalphas = 3*np.pi * eps0 * c**3 * np.array([sum(As/omegas**3 * (1/(omegas-x) + 1/(omegas+x))) for x in omega])
+    kwalphas *= 1 / 4. / np.pi / eps0 /(a0)**3 # convert to units of Bohr radius cubed (cgs)
+    
+    plt.figure()
+    plt.title("Polarizability for ground state $^{87}$Rb")
+    plt.semilogx(wavelength, alphas, label="2-level model with RWA")
+    plt.semilogx(wavelength, kwalphas, label="Added Transitions without RWA")
+    plt.xlabel("Wavelength (m)")
+    plt.ylabel("Polarizability (a$_0$$^3$)")
+    plt.ylim((-1e3,1e3))
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
