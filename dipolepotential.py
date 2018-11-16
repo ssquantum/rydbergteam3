@@ -113,12 +113,11 @@ if __name__ == "__main__":
 
     # Potential test
     beam2 = Potential(beamwaist,power,wavelength,D0guess,omega0,fprop)
-    X = Y = np.linspace(-2e-6, 2e-6, 100)
-    Z = np.linspace(0, 1, 100)
+    X = Y = np.linspace(-2e-6, 2e-6, 200)
+    Z = np.linspace(0, 1e-5, 200)
     x, y, z = np.meshgrid(X, Y, Z)
     test1 = beam2.laserpot(x,y,z)
-    print(test1)
-    test2 = test1[:,:,1]
+    beamXZ = test1[:,1,:]
 
      
     # get a graph of polarizability
@@ -133,15 +132,12 @@ if __name__ == "__main__":
     #kwalphas *= 1 / 4. / np.pi / eps0 /(a0)**3 # convert to units of Bohr radius cubed (cgs)
     
     # Plotting
-    plt.subplot()
     plt.figure()
-    plt.pcolor(X,Y,test2)
+    plt.pcolor(Z,X,np.transpose(beamXZ))
     plt.colorbar()
-    plt.title("Potential of Gaussian laser in x-y plane in units of K",y=1.08)
+    plt.title("Potential of Gaussian laser in x-z plane in units of K",y=1.08)
     plt.xlabel("x (m)")
-    plt.ylabel("y (m)")
-    plt.xticks(np.linspace(-2e-6,2e-6,5))
-    plt.yticks(np.linspace(-2e-6,2e-6,5))
+    plt.ylabel("z (m)")
+    plt.ylim(0,-2e-6)
     plt.tight_layout()
-    #plt.legend()
     plt.show()
