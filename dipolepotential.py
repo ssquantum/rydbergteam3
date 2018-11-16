@@ -113,11 +113,13 @@ if __name__ == "__main__":
 
     # Potential test
     beam2 = Potential(beamwaist,power,wavelength,D0guess,omega0,fprop)
-    X = Y = np.linspace(-2e-6, 2e-6, 200)
-    Z = np.linspace(0, 1e-5, 200)
-    x, y, z = np.meshgrid(X, Y, Z)
-    test1 = beam2.laserpot(x,y,z)
-    beamXZ = test1[:,1,:]
+    zmax = 1e-5 # Length in z direction of laser
+    npts = 200 # Number of grid points
+    X = Y = np.linspace(-2*beamwaist, 2*beamwaist, 200) # X,Y vectors for calc
+    Z = np.linspace(0, zmax, 200) # Z vector for calc
+    x, y, z = np.meshgrid(X, Y, Z) # Stitching into mesh
+    test1 = beam2.laserpot(x,y,z) # Run laser
+    beamXZ = test1[:,1,:] # Extract x-z components of 3D array
 
      
     # get a graph of polarizability
@@ -133,11 +135,12 @@ if __name__ == "__main__":
     
     # Plotting
     plt.figure()
-    plt.pcolor(Z,X,np.transpose(beamXZ))
+    plt.pcolor(X,Z,np.transpose(beamXZ))
     plt.colorbar()
     plt.title("Potential of Gaussian laser in x-z plane in units of K",y=1.08)
     plt.xlabel("x (m)")
     plt.ylabel("z (m)")
-    plt.ylim(0,-2e-6)
+    plt.xlim(-2*beamwaist,2*beamwaist)
+    plt.ylim(0,zmax)
     plt.tight_layout()
     plt.show()
