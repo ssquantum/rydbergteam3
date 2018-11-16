@@ -83,7 +83,7 @@ class Potential:
     def laserpot(self, x, y, z):        
         rhosq = rhosq = x**2 + y**2       # radial coordinate squared
         omeg = self.w0 * np.sqrt(1 + z / self.zR)    # beam width as a function of z
-        return (1 / kB) * (self.D0 ** 2 / (2 * hbar)) * (1 / self.Delta) * ((4 * power) / (np.pi * c * eps0)) * ((self.w0 / omeg) ** 2) * np.exp(-2 * rhosq / (omeg ** 2))
+        return - (1 / kB) * (self.D0 ** 2 / (2 * hbar)) * (1 / self.Delta) * ((4 * power) / (np.pi * c * eps0)) * ((self.w0 / omeg) ** 2) * np.exp(-2 * rhosq / (omeg ** 2))
     
         
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     # Potential test
     beam2 = Potential(beamwaist,power,wavelength,D0guess,omega0,fprop)
-    zmax = 1e-5 # Length in z direction of laser
+    zmax = 1e-7 # Length in z direction of laser
     npts = 200 # Number of grid points
     X = Y = np.linspace(-2*beamwaist, 2*beamwaist, 200) # X,Y vectors for calc
     Z = np.linspace(0, zmax, 200) # Z vector for calc
@@ -142,5 +142,7 @@ if __name__ == "__main__":
     plt.ylabel("z (m)")
     plt.xlim(-2*beamwaist,2*beamwaist)
     plt.ylim(0,zmax)
+    plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+    plt.xticks(np.linspace(-max(X),max(X),6))
     plt.tight_layout()
     plt.show()
