@@ -83,7 +83,7 @@ class Potential:
     def laserpot(self, x, y, z):        
         rhosq = rhosq = x**2 + y**2       # radial coordinate squared
         omeg = self.w0 * np.sqrt(1 + z / self.zR)    # beam width as a function of z
-        return - (1 / kB) * (self.D0 ** 2 / (2 * hbar)) * (1 / self.Delta) * ((4 * power) / (np.pi * c * eps0)) * ((self.w0 / omeg) ** 2) * np.exp(-2 * rhosq / (omeg ** 2))
+        return - (1 / kB) * (self.D0 ** 2 / (2 * hbar)) * (1 / self.Delta) * ((4 * power) / (np.pi * self.w0 * c * eps0)) * ((self.w0 / omeg) ** 2) * np.exp(-2 * rhosq / (omeg ** 2))
     
         
 
