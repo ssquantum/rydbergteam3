@@ -52,6 +52,7 @@ class dipole:
         self.m     = mass * 1.67e-26          # mass of the atom in kg
         self.I     = nuclear_spin
         self.field = Gauss(*field_properties) # combines all properties of the field
+        self.omega0 = resonant_frequency      # resonant frequency
         self.Delta = 2*np.pi*c/self.field.lam - resonant_frequency # detuning (in rad/s)
         self.gam   = decay_rate               # spontaneous decay rate
         self.D0    = dipole_matrix_element    # D0 = -e <a|r|b> for displacement r along the polarization direction
@@ -67,10 +68,17 @@ class dipole:
         where in the FORT limit we can take alpha = -D0^2/hbar /Delta for detuning Delta >> than the natural linewidth"""
         return self.D0**2 / 2 / hbar / self.Delta *np.abs( self.field.amplitude(x,y,z) )**2
     
-    def reala(self):
-        """Return the real part of the polarizability """
-        return -self.D0**2 / hbar * self.Delta / (self.Delta**2 - self.gam**2/4.)
+    def RWApolarizability(self):
+        """Return the real part of the polarizability with the RWA
+        Note the factor of 1/3 is from averaging over spatial directions"""
+        return -self.D0**2 /3. /hbar * self.Delta / (self.Delta**2 - self.gam**2/4.)
     
+    def polarizability(self):
+        """Return the real part of the polarizability with the RWA
+        Note the factor of 1/3 is from averaging over spatial directions"""
+        omega = 2*np.pi * c/ self.field.lam # laser angular frequency
+        return -self.D0**2 /3. /hbar * (self.Delta / (self.Delta**2 - self.gam**2/4.) + (self.omega0 + omega) / ((self.omega0 + omega)**2 - self.gam**2/4.))
+
         
 if __name__ == "__main__":
     # plot the dipole moment components as a function of detuning
@@ -91,9 +99,13 @@ if __name__ == "__main__":
     beam1 = Gauss(wavelength, power, beamwaist)
     d1 = dipole(133, 7/2., D0guess, fprop, omega0, gamma)
 
-    # get a graph of polarizability
-    alphas = d1.reala()
-    alphas *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
+    # get a graph of polarizability with RWA
+    alpha1 = d1.RWApolarizability()
+    alpha1 *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
+
+    # get a graph of polarizability without RWA
+    alpha2 = d1.polarizability()
+    alpha2 *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
     
     # compare K. Weatherill's polarizability
     # the values are obtained from K J Weatherill's thesis, Fig 2.5, available from Durham etheses
@@ -104,7 +116,8 @@ if __name__ == "__main__":
     
     plt.figure()
     plt.title("Polarizability for ground state $^{87}$Rb")
-    plt.semilogx(wavelength, alphas, label="2-level model with RWA")
+    plt.semilogx(wavelength, alpha1, label="2-level model with RWA")
+    plt.semilogx(wavelength, alpha2, label="2-level model without RWA")
     plt.semilogx(wavelength, kwalphas, label="Added Transitions without RWA")
     plt.xlabel("Wavelength (m)")
     plt.ylabel("Polarizability (a$_0$$^3$)")
@@ -112,3 +125,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.legend()
     plt.show()
+
