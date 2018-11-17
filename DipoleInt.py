@@ -17,6 +17,7 @@ c = 299792458        # speed of light in m/s
 eps0 = 8.85419e-12   # permittivity of free space in m^-3 kg^-1 s^4 A^2
 hbar = 1.0545718e-34 # in m^2 kg / s
 a0 = 5.29177e-11     # Bohr radius in m
+e = 1.6021766208e-19 # magnitude of the charge on an electron in C
 
 
 class Gauss:
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     gamma = 2*np.pi*6.07e6 # estimate of natural linewidth in rad/s
     
     beam1 = Gauss(wavelength, power, beamwaist)
-    d1 = dipole(133, 7/2., D0guess, fprop, omega0, gamma)
+    d1 = dipole(87, 3/2., D0guess, fprop, omega0, gamma)
 
     # get a graph of polarizability with RWA
     alpha1 = d1.RWApolarizability()
@@ -126,3 +127,26 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
+    # ----------------------------
+    # now try and calculate the polarizability for Cs133
+    CsD0 = 3.174 * e * a0 # dipole matrix element for Cs 6S1/2 -> 6P1/2
+    Csomega0 = 2*np.pi*c /894.6e-9 # estimate of resonant frequeny in rad/s for Cs D1 transition
+    Csgamma = 2*np.pi*4.5612 # estimate of natural linewidth in rad/s
+    
+    Cs_d = dipole(133, 7/2., D0guess, fprop, omega0, gamma)
+
+    Csalpha = Cs_d.polarizability()       # polarizability without RWA
+    Csalpha *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
+    CsRWAalpha = Cs_d.RWApolarizability() # polarizability with RWA
+    CsRWAalpha *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
+    
+    plt.figure()
+    plt.title("Polarizability for ground state $^{133}$Cs")
+    plt.semilogx(wavelength, CsRWAalpha, label="2-level model with RWA")
+    plt.semilogx(wavelength, Csalpha, label="2-level model without RWA")
+    plt.xlabel("Wavelength (m)")
+    plt.ylabel("Polarizability (a$_0$$^3$)")
+    plt.ylim((-1e3,1e3))
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
