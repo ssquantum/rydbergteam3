@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Spyder Editor
+
+This is a temporary script file.
+"""
+
 """Stefan Spence 13.11.18
 Grad Course: Atomic and Molecular Interactions
 Calculate the spectrum of noe and two Rydberg atoms in an optical tweezer.
@@ -81,7 +88,7 @@ class Potential:
         self.zR = np.pi * beam_waist**2 / wavelength # the Rayleigh range
         
     def laserpot(self, x, y, z):        
-        rhosq = rhosq = x**2 + y**2       # radial coordinate squared
+        rhosq = x**2 + y**2       # radial coordinate squared
         omeg = self.w0 * np.sqrt(1 + z / self.zR)    # beam width as a function of z
         return - (1 / kB) * (self.D0 ** 2 / (2 * hbar)) * (1 / self.Delta) * ((4 * power) / (np.pi * self.w0 * c * eps0)) * ((self.w0 / omeg) ** 2) * np.exp(-2 * rhosq / (omeg ** 2))
     
@@ -113,10 +120,10 @@ if __name__ == "__main__":
 
     # Potential test
     beam2 = Potential(beamwaist,power,wavelength,D0guess,omega0,fprop)
-    zmax = 1e-7 # Length in z direction of laser
+    zmax = 2e-7 # Length in z direction of laser
     npts = 200 # Number of grid points
-    X = Y = np.linspace(-2*beamwaist, 2*beamwaist, 200) # X,Y vectors for calc
-    Z = np.linspace(0, zmax, 200) # Z vector for calc
+    X = Y = np.linspace(-2*beamwaist, 2*beamwaist, npts) # X,Y vectors for calc
+    Z = np.linspace(-zmax, zmax, npts) # Z vector for calc
     x, y, z = np.meshgrid(X, Y, Z) # Stitching into mesh
     test1 = beam2.laserpot(x,y,z) # Run laser
     beamXZ = test1[:,1,:] # Extract x-z components of 3D array
@@ -135,14 +142,16 @@ if __name__ == "__main__":
     
     # Plotting
     plt.figure()
-    plt.pcolor(X,Z,np.transpose(beamXZ))
+    plt.pcolor(Z,X,beamXZ)
     plt.colorbar()
     plt.title("Potential of Gaussian laser in x-z plane in units of K",y=1.08)
-    plt.xlabel("x (m)")
-    plt.ylabel("z (m)")
-    plt.xlim(-2*beamwaist,2*beamwaist)
-    plt.ylim(0,zmax)
+    plt.xlabel("z (m)")
+    plt.ylabel("x (m)")
+    plt.ylim(-2*beamwaist,2*beamwaist)
+    plt.xlim(-zmax,zmax)
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-    plt.xticks(np.linspace(-max(X),max(X),6))
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.xticks(np.linspace(-max(Z),max(Z),6))
+    plt.yticks(np.linspace(-max(X),max(X),6))
     plt.tight_layout()
     plt.show()
