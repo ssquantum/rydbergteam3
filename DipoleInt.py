@@ -11,6 +11,7 @@ calculate the polarizability and compare the 2-level model to including other tr
 
 19.11.18 extend polarizability function
 now it allows several laser wavelengths and several resonant transitions 
+added Boltzmann's constant to global variables to convert Joules to Kelvin
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,6 +22,7 @@ eps0 = 8.85419e-12   # permittivity of free space in m^-3 kg^-1 s^4 A^2
 hbar = 1.0545718e-34 # in m^2 kg / s
 a0 = 5.29177e-11     # Bohr radius in m
 e = 1.6021766208e-19 # magnitude of the charge on an electron in C
+kB = 1.38064852e-23  # Boltzmann's constant in m^2 kg s^-2 K^-1
 amu = 1.6605390e-27  # atomic mass unit in kg
 
 class Gauss:
@@ -76,12 +78,12 @@ class dipole:
     def U(self, x, y, z):
         """Return the potential from the dipole interaction U = -<d>E = -1/2 Re[alpha] E^2
         Then taking the time average of the cos^2(wt) AC field term we get U = -1/4 Re[alpha] E^2"""
-        return self.polarizability() /4. *np.abs( self.field.amplitude(x,y,z) )**2
+        return -self.polarizability() /4. *np.abs( self.field.amplitude(x,y,z) )**2
     
     def RWApolarizability(self):
         """Return the real part of the polarizability with the RWA
         Note the factor of 1/3 is from averaging over spatial directions"""
-        return -np.sum(self.D0s**2 /3. /hbar * self.Delta / (self.Delta**2 - self.gam**2/4.), axis=0)
+        return np.sum(-self.D0s**2 /3. /hbar * self.Delta / (self.Delta**2 - self.gam**2/4.), axis=0)
     
     def polarizability(self):
         """Return the real part of the polarizability with the RWA
@@ -96,7 +98,7 @@ if __name__ == "__main__":
     # and take the rabi frequency to be equal to the spontaneous decay rate
 
     # need a large number of points in the array to resolve resonances
-    wavelength = np.logspace(-7, -5, 10000)   # wavelength of laser in m
+    wavelength = 980e-9 #np.logspace(-7, -5, 10000)   # wavelength of laser in m
     omega = 2*np.pi * c / wavelength  # angular frequency in rad/s
     power = 1 # power in watts
     beamwaist = 1e-6 # beam waist in m
