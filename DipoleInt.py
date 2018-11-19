@@ -1,13 +1,16 @@
 """Stefan Spence 13.11.18
 Grad Course: Atomic and Molecular Interactions
-
 Calculate the spectrum of noe and two Rydberg atoms in an optical tweezer.
-
 1) Formulate the equations for Gaussian beam propagation.
-2) Look at the dipole interaction and the induced dipole moment
+2) Look at the dipole interaction and the induced dipole moment as a function of
+laser wavelength and spatial position
+3) calculate the polarizability for a given state at a given wavelength
 
 14.11.18 add in dipole potential
 calculate the polarizability and compare the 2-level model to including other transitions
+
+19.11.18 extend polarizability function
+now it allows several laser wavelengths and several resonant transitions 
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,7 +21,7 @@ eps0 = 8.85419e-12   # permittivity of free space in m^-3 kg^-1 s^4 A^2
 hbar = 1.0545718e-34 # in m^2 kg / s
 a0 = 5.29177e-11     # Bohr radius in m
 e = 1.6021766208e-19 # magnitude of the charge on an electron in C
-
+amu = 1.6605390e-27  # atomic mass unit in kg
 
 class Gauss:
     """Properties and associated equations of a Gaussian beam"""
@@ -48,37 +51,43 @@ class Gauss:
         
 class dipole:
     """Properties and equations of the dipole interaction between atom and field"""
-    def __init__(self, mass, nuclear_spin, dipole_matrix_element, 
-                    field_properties, resonant_frequency, decay_rate):
-        self.m     = mass * 1.67e-26          # mass of the atom in kg
+    def __init__(self, mass, nuclear_spin, dipole_matrix_elements, 
+                    field_properties, resonant_frequencies, decay_rates):
+        self.m     = mass * amu                          # mass of the atom in kg
         self.I     = nuclear_spin
-        self.field = Gauss(*field_properties) # combines all properties of the field
-        self.omega0 = resonant_frequency      # resonant frequency
-        self.Delta = 2*np.pi*c/self.field.lam - resonant_frequency # detuning (in rad/s)
-        self.gam   = decay_rate               # spontaneous decay rate
-        self.D0    = dipole_matrix_element    # D0 = -e <a|r|b> for displacement r along the polarization direction
+        self.field = Gauss(*field_properties)            # combines all properties of the field
+        # have to make sure that the arrays are all the right shape (#wavlengths, #transitions):
+        num_wavelengths = np.size(self.field.lam)            # number of wavelength points being samples
+        num_transitions = np.size(resonant_frequencies)      # number of transitions included
+        self.omega0 = np.array([resonant_frequencies]*num_wavelengths).T     # resonant frequencies
+        self.omegas = np.array([2*np.pi*c/self.field.lam]*num_transitions)   # laser frequencies
+        self.Delta = self.omegas - self.omega0  # detuning (in rad/s)
+        self.gam   = np.array([decay_rates]*num_wavelengths).T               # spontaneous decay rate(s)
+        self.D0s   = np.array([dipole_matrix_elements]*num_wavelengths).T    # D0 = -e <a|r|b> for displacement r along the polarization direction
+        if np.size(dipole_matrix_elements) != np.size(resonant_frequencies):
+            print("WARNING\nLengths don't match: There must be a corresponding resonant frequency for each supplied dipole matrix element")
         
         # from these properties we can deduce:
-        self.rabi  = dipole_matrix_element * self.field.E0 / hbar        # Rabi frequency in rad/s
+        self.rabi  = self.D0s * self.field.E0 / hbar        # Rabi frequency in rad/s
         self.s     = 0.5 * self.rabi**2 / (self.Delta**2 + 0.25*self.gam**2)
         self.ust   = self.Delta * self.s / self.rabi / (1. + self.s)     # in phase dipole moment
         self.vst   = self.gam * 0.5 / self.rabi * self.s / (1. + self.s) # quadrature dipole moment
 
     def U(self, x, y, z):
         """Return the potential from the dipole interaction U = -<d>E = -1/2 Re[alpha] E^2
-        where in the FORT limit we can take alpha = -D0^2/hbar /Delta for detuning Delta >> than the natural linewidth"""
-        return self.D0**2 / 2 / hbar / self.Delta *np.abs( self.field.amplitude(x,y,z) )**2
+        Then taking the time average of the cos^2(wt) AC field term we get U = -1/4 Re[alpha] E^2"""
+        return self.polarizability() /4. *np.abs( self.field.amplitude(x,y,z) )**2
     
     def RWApolarizability(self):
         """Return the real part of the polarizability with the RWA
         Note the factor of 1/3 is from averaging over spatial directions"""
-        return -self.D0**2 /3. /hbar * self.Delta / (self.Delta**2 - self.gam**2/4.)
+        return -np.sum(self.D0s**2 /3. /hbar * self.Delta / (self.Delta**2 - self.gam**2/4.), axis=0)
     
     def polarizability(self):
         """Return the real part of the polarizability with the RWA
         Note the factor of 1/3 is from averaging over spatial directions"""
-        omega = 2*np.pi * c/ self.field.lam # laser angular frequency
-        return -self.D0**2 /3. /hbar * (self.Delta / (self.Delta**2 - self.gam**2/4.) + (self.omega0 + omega) / ((self.omega0 + omega)**2 - self.gam**2/4.))
+        return np.sum(-self.D0s**2 /3. /hbar * (self.Delta / (self.Delta**2 - self.gam**2/4.) 
+                + (self.omega0 + self.omegas) / ((self.omega0 + self.omegas)**2 - self.gam**2/4.)), axis=0)
 
         
 if __name__ == "__main__":
@@ -127,26 +136,4 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-    # ----------------------------
-    # now try and calculate the polarizability for Cs133
-    CsD0 = 3.174 * e * a0 # dipole matrix element for Cs 6S1/2 -> 6P1/2
-    Csomega0 = 2*np.pi*c /894.6e-9 # estimate of resonant frequeny in rad/s for Cs D1 transition
-    Csgamma = 2*np.pi*4.5612 # estimate of natural linewidth in rad/s
     
-    Cs_d = dipole(133, 7/2., D0guess, fprop, omega0, gamma)
-
-    Csalpha = Cs_d.polarizability()       # polarizability without RWA
-    Csalpha *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
-    CsRWAalpha = Cs_d.RWApolarizability() # polarizability with RWA
-    CsRWAalpha *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
-    
-    plt.figure()
-    plt.title("Polarizability for ground state $^{133}$Cs")
-    plt.semilogx(wavelength, CsRWAalpha, label="2-level model with RWA")
-    plt.semilogx(wavelength, Csalpha, label="2-level model without RWA")
-    plt.xlabel("Wavelength (m)")
-    plt.ylabel("Polarizability (a$_0$$^3$)")
-    plt.ylim((-1e3,1e3))
-    plt.tight_layout()
-    plt.legend()
-    plt.show()
