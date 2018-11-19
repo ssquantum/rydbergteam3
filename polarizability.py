@@ -18,13 +18,15 @@ beamwaist = 1e-6                          # beam waist in m
 bprop = [wavelength, power, beamwaist]    # collect beam properties
 
 
-# dipole matrix elements for: 6S1/2 -> 6P1/2, 6S1/2 -> 6P3/2
-CsD0s = np.array([3.19, 4.48]) * e * a0 
+# dipole matrix elements for: 6S1/2 -> 6P1/2, 6P3/2, 7P1/2, 7P3/2
+# data for the 7P states was found using atomcalc and linewidths from
+# Vasilyev, AA & Savukov, I & S. Safronova, M & Berry, H. (2001). Measurement of the 6s - 7p transition probabilities in atomic cesium and a revised value for the weak charge Q_W. Physical Review A. 66. 10.1103/PhysRevA.66.020101. 
+CsD0s = np.array([3.19, 4.48, 0.197, 0.407]) * e * a0 
 
 # resonances
-Cswavelengths = np.array([894.6, 852.3]) * 1e-9 # wavelength in m
+Cswavelengths = np.array([894.6, 852.3, 459.4, 455.7]) * 1e-9 # wavelength in m
 Csomega0 = 2*np.pi*c /Cswavelengths             # angular frequency in rad/s
-Csgamma = 2*np.pi*np.array([4.575, 5.234])      # natural linewidth in rad/s
+Csgamma = 2*np.pi*np.array([4.575, 5.234, 0.1263, 0.2922])*1e6      # natural linewidth in rad/s
 
 # create the dipole object and calculate the polarizability
 Cs_d = DI.dipole(133, 7/2., CsD0s, bprop, Csomega0, Csgamma)
@@ -32,8 +34,8 @@ Csalpha = Cs_d.polarizability()            # polarizability without RWA
 Csalpha *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
 
 # compare the effect of including the D1, D2 transition:
-Cs_D1 = DI.dipole(133, 7/2., CsD0s[0], bprop, Csomega0[0], Csgamma[0])
-D1alpha = Cs_D1.polarizability()
+Cs_Dboth = DI.dipole(133, 7/2., CsD0s[:2], bprop, Csomega0[:2], Csgamma[:2])
+D1alpha = Cs_Dboth.polarizability()
 D1alpha *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cubed (cgs)
 
 Cs_D2 = DI.dipole(133, 7/2., CsD0s[1], bprop, Csomega0[1], Csgamma[1])
@@ -42,9 +44,11 @@ D2alpha *= 1 / 4. / np.pi / eps0  /(a0)**3 # convert to units of Bohr radius cub
     
 plt.figure()
 plt.title("Polarizability for ground state $^{133}$Cs")
-plt.semilogx(wavelength, Csalpha, label="Both D1 and D2 transitions")
-plt.semilogx(wavelength, D1alpha, label="2-level model with D1")
-plt.semilogx(wavelength, D2alpha, label="2-level model with D2")
+# Cs_d and Cs_Dboth are indistinguishable except for the resonances at 456nm
+# so four our laser working at 980nm, we can just use the D1 and D2 transitions.
+plt.semilogx(wavelength, Csalpha, label="Strongest 4 transitions")
+plt.semilogx(wavelength, D1alpha, label="D1 and D2 transitions")
+plt.semilogx(wavelength, D2alpha, label="Just D2 transition")
 plt.xlabel("Wavelength (m)")
 plt.ylabel("Polarizability (a$_0$$^3$)")
 plt.ylim((-1e3,1e3))
