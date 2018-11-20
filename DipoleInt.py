@@ -12,6 +12,11 @@ calculate the polarizability and compare the 2-level model to including other tr
 19.11.18 extend polarizability function
 now it allows several laser wavelengths and several resonant transitions 
 added Boltzmann's constant to global variables to convert Joules to Kelvin
+
+20.11.18
+make the polarizability function work for multiple or individual wavelengths
+correct the denominator in the polarizability function from Delta^2 - Gamma^2
+to Delta^2 + Gamma^2
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,9 +48,12 @@ class Gauss:
         self.k  = 2 * np.pi / wavelength             # the wave vector
         
     def amplitude(self, x, y, z):
-        """Calculate the amplitude of the Gaussian beam at a given position"""
-        rhosq = x**2 + y**2       # radial coordinate squared
-        q     = z - 1.j * self.zR # complex beam parameter
+        """Calculate the amplitude of the Gaussian beam at a given position
+        note that this function will not work if several coordinates are 1D arrays
+        instead, loop over the other coordinates so that there is only ever one
+        coordinate as an array."""
+        rhosq = x**2 + y**2                     # radial coordinate squared    
+        q     = z - 1.j * self.zR               # complex beam parameter
         
         # Gaussian beam equation (see Optics f2f Eqn 11.7)
         return self.zR /1.j /q * self.E0 * np.exp(1j * self.k * z) * np.exp(1j * self.k * rhosq / 2. / q)
@@ -61,11 +69,21 @@ class dipole:
         # have to make sure that the arrays are all the right shape (#wavlengths, #transitions):
         num_wavelengths = np.size(self.field.lam)            # number of wavelength points being samples
         num_transitions = np.size(resonant_frequencies)      # number of transitions included
-        self.omega0 = np.array([resonant_frequencies]*num_wavelengths).T     # resonant frequencies
-        self.omegas = np.array([2*np.pi*c/self.field.lam]*num_transitions)   # laser frequencies
+        
+        # if there is only one wavelength then we don't want to transpose
+        if num_wavelengths > 1:
+            self.omega0 = np.array([resonant_frequencies]*num_wavelengths).T     # resonant frequencies
+            self.gam   = np.array([decay_rates]*num_wavelengths).T               # spontaneous decay rate(s)
+            self.D0s   = np.array([dipole_matrix_elements]*num_wavelengths).T    # D0 = -e <a|r|b> for displacement r along the polarization direction
+            self.omegas = np.array([2*np.pi*c/self.field.lam]*num_transitions)   # laser frequencies
+        else:
+            self.omega0 = np.array([resonant_frequencies]*num_wavelengths)[0]     # resonant frequencies
+            self.gam   = np.array([decay_rates]*num_wavelengths)[0]               # spontaneous decay rate(s)
+            self.D0s   = np.array([dipole_matrix_elements]*num_wavelengths)[0]    # D0 = -e <a|r|b> for displacement r along the polarization direction
+            self.omegas = np.array([2*np.pi*c/self.field.lam]*num_transitions)    # laser frequencies
+        
         self.Delta = self.omegas - self.omega0  # detuning (in rad/s)
-        self.gam   = np.array([decay_rates]*num_wavelengths).T               # spontaneous decay rate(s)
-        self.D0s   = np.array([dipole_matrix_elements]*num_wavelengths).T    # D0 = -e <a|r|b> for displacement r along the polarization direction
+        
         if np.size(dipole_matrix_elements) != np.size(resonant_frequencies):
             print("WARNING\nLengths don't match: There must be a corresponding resonant frequency for each supplied dipole matrix element")
         
@@ -83,13 +101,13 @@ class dipole:
     def RWApolarizability(self):
         """Return the real part of the polarizability with the RWA
         Note the factor of 1/3 is from averaging over spatial directions"""
-        return np.sum(-self.D0s**2 /3. /hbar * self.Delta / (self.Delta**2 - self.gam**2/4.), axis=0)
+        return np.sum(-self.D0s**2 /3. /hbar * self.Delta / (self.Delta**2 + self.gam**2/4.), axis=0)
     
     def polarizability(self):
         """Return the real part of the polarizability with the RWA
         Note the factor of 1/3 is from averaging over spatial directions"""
-        return np.sum(-self.D0s**2 /3. /hbar * (self.Delta / (self.Delta**2 - self.gam**2/4.) 
-                + (self.omega0 + self.omegas) / ((self.omega0 + self.omegas)**2 - self.gam**2/4.)), axis=0)
+        return np.sum(-self.D0s**2 /3. /hbar * (self.Delta / (self.Delta**2 + self.gam**2/4.) 
+                + (self.omega0 + self.omegas) / ((self.omega0 + self.omegas)**2 + self.gam**2/4.)), axis=0)
 
         
 if __name__ == "__main__":
@@ -98,7 +116,7 @@ if __name__ == "__main__":
     # and take the rabi frequency to be equal to the spontaneous decay rate
 
     # need a large number of points in the array to resolve resonances
-    wavelength = 980e-9 #np.logspace(-7, -5, 10000)   # wavelength of laser in m
+    wavelength = np.logspace(-7, -5, 10000)   # wavelength of laser in m
     omega = 2*np.pi * c / wavelength  # angular frequency in rad/s
     power = 1 # power in watts
     beamwaist = 1e-6 # beam waist in m
@@ -137,5 +155,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.legend()
     plt.show()
-
     
