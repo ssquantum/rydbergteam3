@@ -4,15 +4,18 @@
 TO DO: fit a Gaussian to the potential in the x and z directions
 use this to get a trap width in the x and z directions respectively
 then see how these widths vary with beamwaist and wavelength
+Also:
+    make the units more explicit - at the moment they're hard-coded in several places
 """ 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm
 import DipoleInt as DI
 from DipoleInt import c, eps0, hbar, a0, e, kB
+from scipy.optimize import curve_fit
 
 
-def offgauss(x, A, x0, sig, y0):
+def fitgauss(x, A, x0, sig, y0):
         """Gaussian function centred at x0 with amplitude A, 1/e^2 width sig
         and offset y0.
         Used to estimate the width of the trap."""
@@ -24,11 +27,11 @@ def plotcontour(x, z, u):
     xmax = np.amax(x)
     zmax = np.amax(z)
     
-    x, xmax, z, zmax = np.array([x, xmax, z, zmax])*1e6                 # convert from m to microns
+    xaxis, xmax, zaxis, zmax = np.array([x, xmax, z, zmax])*1e6                 # convert from m to microns
     
     plt.figure()
     plt.title("Fig. 2 - Potential of Gaussian laser in x-z plane (K)",y=1.08)
-    plt.contour(z, x, u)
+    plt.contour(zaxis, xaxis, u)
     plt.imshow(u, 
                extent = (-zmax, zmax, -xmax, xmax),
                origin = 'lower',
@@ -43,6 +46,30 @@ def plotcontour(x, z, u):
     plt.yticks(np.linspace(-xmax,xmax,7))
     plt.tight_layout()
     plt.show()
+
+def applyfit(x, u, pguess, verb=0):
+    """Use scipy curve_fit to get parameters from a Gaussian fit
+    to the dipole potential"""
+    popt, pcov = curve_fit(fitgauss, x, u,
+                    p0 = pguess,
+                    bounds = ((-np.inf, -np.inf, 0, -np.inf),np.inf))
+
+    wid = popt[2]           # width estimate from Gaussian 1/e^2 width
+    errwid = pcov[2,2]**0.5 # error in the width
+
+    if verb > 0:
+        # check the fit by plotting a graph
+        plt.figure()
+        x *= 1e6    # convert units to microns
+        plt.plot(x, u, '.')
+        plt.plot(x, fitgauss(x, *popt), '--')
+        plt.ylabel("Dipole Potential (K)")
+        plt.xlabel("Position ($\mu$m)")
+        plt.show()
+
+        print("The width is %.3g +/- %.1g microns"%(wid*1e6,errwid*1e6))
+
+    return (popt, pcov)
 
 
 if __name__ == "__main__":
@@ -92,7 +119,12 @@ if __name__ == "__main__":
     print('Difference between min and max = %.3g K'%tdepth)
     print('Kevs thesis formula predicts trap depth = %.3g K'%(U0/kB))
     
-    # fit Gaussian with scipy.optimize.curve_fit
+    # fit Gaussian to get estimate of trap widths
+    poptx, pcovx = applyfit(xaxis, Cs_d.U(xaxis,0,0)/kB,
+                            (-tdepth, 0, beamwaist, 0), 1)
+    poptz, pcovz = applyfit(zaxis, Cs_d.U(0,0,zaxis)/kB,
+                            (-tdepth, 0, beamwaist, 0), 1)
+
     
     # see how trap widths vary with wavelength and beamwaist
     
