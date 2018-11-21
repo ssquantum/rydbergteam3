@@ -5,14 +5,11 @@ Calculate the spectrum of noe and two Rydberg atoms in an optical tweezer.
 2) Look at the dipole interaction and the induced dipole moment as a function of
 laser wavelength and spatial position
 3) calculate the polarizability for a given state at a given wavelength
-
 14.11.18 add in dipole potential
 calculate the polarizability and compare the 2-level model to including other transitions
-
 19.11.18 extend polarizability function
 now it allows several laser wavelengths and several resonant transitions 
 added Boltzmann's constant to global variables to convert Joules to Kelvin
-
 20.11.18
 make the polarizability function work for multiple or individual wavelengths
 correct the denominator in the polarizability function from Delta^2 - Gamma^2
@@ -109,16 +106,17 @@ class dipole:
         return np.sum(-self.D0s**2 /3. /hbar * (self.Delta / (self.Delta**2 + self.gam**2/4.) 
                 + (self.omega0 + self.omegas) / ((self.omega0 + self.omegas)**2 + self.gam**2/4.)), axis=0)
 
-        
-if __name__ == "__main__":
-    # plot the dipole moment components as a function of detuning
-    # in order to make the units nice, normalise the detuning to the spontaneous decay rate
-    # and take the rabi frequency to be equal to the spontaneous decay rate
 
+#### example functions:
+
+
+def RbExample():
+    """An example of using the dipole class to plot the polarizability of 87Rb
+    in several different approximations"""
     # need a large number of points in the array to resolve resonances
     wavelength = np.logspace(-7, -5, 10000)   # wavelength of laser in m
     omega = 2*np.pi * c / wavelength  # angular frequency in rad/s
-    power = 1 # power in watts
+    power = 1e-3 # power in watts
     beamwaist = 1e-6 # beam waist in m
     fprop = [wavelength, power, beamwaist]
     
@@ -155,4 +153,44 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.legend()
     plt.show()
+
+if __name__ == "__main__":
+    # typical optical tweezer parameters:
+    wavelength = 980e-9                 # laser wavelength in nm
+    omega = 2*np.pi * c / wavelength    # angular frequency in rad/s
+    power = 1e-3                        # power in watts
+    beamwaist = 1e-6                    # beam waist in m
+    bprop = [wavelength, power, beamwaist] # collect beam properties
     
+    # atomic properties for Cs-133:
+    # dipole matrix elements for: 6S1/2 -> 6P1/2, 6P3/2
+    CsD0s = np.array([3.19, 4.48]) * e * a0 
+
+    # resonances
+    Cswavelengths = np.array([894.6, 852.3]) * 1e-9     # wavelength in m
+    Csomega0 = 2*np.pi*c /Cswavelengths                 # angular frequency in rad/s
+    Csgamma = 2*np.pi*np.array([4.575, 5.234])*1e6      # natural linewidth in rad/s
+
+    # create the dipole object 
+    Cs_d = dipole(133, 7/2., CsD0s, bprop, Csomega0, Csgamma)
+    
+    # then you can get the potential at a given position:
+    xaxis = np.linspace(-2e-6, 2e-6, 200) # positions along x in m
+    zaxis = np.linspace(-5e-6, 5e-6, 200) # positions along z in m
+    ypos = 0                         # position on y axis in m
+    
+    # calculate the potential in the x-z plane
+    u = np.zeros((len(xaxis), len(zaxis)))
+    for ix, xpos in enumerate(xaxis):
+        u[ix,:] = Cs_d.U(xpos, ypos, zaxis)
+        
+    u /= kB                          # convert from Joules to Kelvin
+    
+    plt.figure()
+    plt.contour(zaxis*1e6, xaxis*1e6, u)
+    plt.imshow(u, extent=(-5,5,-2,2), aspect='auto')
+    plt.colorbar()
+    plt.xlabel("z position in microns")
+    plt.ylabel("x position in microns")
+    plt.title("Dipole Potential in the x-z plane (K)")
+    plt.show()
